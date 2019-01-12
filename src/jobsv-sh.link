@@ -1,0 +1,8 @@
+common.o
+get_fds.o
+
+release.o
+
+# "external" libraries
+block_readwrite.o
+unreachable.o

@@ -1,0 +1,41 @@
+#!/bin/sh -Cue
+cd "$(dirname "$0")/.."
+task/build
+exec </dev/null
+
+unset JOBSERVER_FDS
+
+project="$(readlink -f .)"
+export project
+PATH="$project/cmd:$PATH"
+_funcs="$project/test/_funcs.sh"
+
+run_tests() {  # [PREFIX]
+    for x in *; do
+        case "$x" in _*) continue ;; esac
+        if [ -d "$x" ]; then
+            (cd "$x" && run_tests "${1-}$x/")
+            continue
+            fi
+        printf %s\\n "### ${1-}$x"
+        case "$x" in
+            *_js.sh)
+                jobsv --new \
+                /bin/sh -Cuec '. "$1"; . "$0"' "./$x" "$_funcs"
+                continue
+                ;;
+            *.sh)
+                /bin/sh -Cuec '. "$1"; . "$0"' "./$x" "$_funcs"
+                continue
+                ;;
+            esac
+        if [ -x "$x" ]; then
+            ./"$x"
+            continue
+            fi
+        printf %s\\n 'unknown test type' >&2
+        exit 70
+        done
+    }
+cd test
+run_tests test/
