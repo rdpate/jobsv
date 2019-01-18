@@ -8,11 +8,10 @@ redo-ifchange "$src"
 dep="$(dirname "$1")/.$(basename "$1").dep"
 target="$1"
 output="$3"
-set --
-for args in "${0%.do}.args" "$target.args"; do
-    [ -e "$args" ] || continue
-    redo-ifchange "$args"
-    reldir="$(dirname "$args")"
+set -- -std=c11 -D_DEFAULT_SOURCE -D_BSD_SOURCE -Wall -Werror -O3
+if [ -e "$target.args" ]; then
+    redo-ifchange "$target.args"
+    reldir="$(dirname "$target.args")"
     while read -r line; do
         case "$line" in
             '#'*|'') continue ;;
@@ -20,8 +19,8 @@ for args in "${0%.do}.args" "$target.args"; do
             *) line="$reldir/$line" ;;
             esac
         set -- "$@" "$line"
-        done <"$args"
-    done
+        done <"$target.args"
+    fi
 cc -c -MD -MF"$dep" -o"$output" "$@" "$src"
 sed -r 's/^[^:]+: *//; s/ \\$//; s/^ +| +$//g; s/ +/\n/g' "$dep" \
 | xargs redo-ifchange
