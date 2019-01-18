@@ -11,6 +11,7 @@ char const *commands[] = {
 
 #include <unistd.h>
 int main(int argc, char **argv) {
+    jobserver_error_set_cmd(argv[0]);
     if (argc == 1) jobserver_init_or_exec(argv);
     else jobserver_init_or_sync();
 

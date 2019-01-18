@@ -15,6 +15,9 @@
         // errnum: errno if applicable or 0 otherwise
         // msg: brief description or NULL
         // - see jobserver_fatal.c for sample definition
+    void jobserver_error_set_cmd(char const *);
+        // in main, call with argv[0]
+        // only required if default jobserver_error is used
 // High-level Interface
     bool jobserver_init_or_exec(char **self_args);
         // - init or exec "jobserver init --" plus self_args
