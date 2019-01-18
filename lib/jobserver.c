@@ -26,6 +26,7 @@
         int child_fd;
         jobserver_wait_callback wait_callback;
         void *wait_callback_data;
+        int waited_pid;
         } self;
     #define log_msg(msg)            jobserver_error(0, __func__, 0, msg)
     //#define fatal_func(func)        jobserver_error(70, func, errno, NULL)
@@ -116,6 +117,7 @@
         // parent
         jobserver_forked_parent();
         jobserver_acquire_wait(0, 0);
+        if (self.waited_pid == pid) pid = 0;
         return pid;
         }
     pid_t jobserver_bg_spawn(char const *cmd, char const *args, ...) {
@@ -326,6 +328,7 @@
         }
     bool jobserver_acquire_wait(jobserver_wait_callback func, void *data) {
         check_init_return(false);
+        self.waited_pid = 0;
         if (self.slots_held > 0) return true;
         struct pollfd x[2] = {{self.read_fd, POLLIN}, {self.child_fd, POLLIN}};
         while (true) {
@@ -346,6 +349,7 @@
                     return false;
                     }
                 if (!pid) continue;
+                self.waited_pid = pid;
                 (void) jobserver_waited_keep(1);
                 if (!func) func = self.wait_callback;
                 if (func) {

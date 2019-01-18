@@ -29,9 +29,9 @@
         //  - child runs _Exit(func(data))
         //  - not background as in shell job control
         // - stdin redirected from /dev/null
-        // - ensures parent holds a slot when exits, which might involve waiting for a child
+        // - ensures parent holds a slot when exits, which might involve waiting for a child, maybe even the one that was just started
         // error: -1
-        // return: child PID
+        // return: child PID, or 0 if that child has been waited upon
     pid_t jobserver_bg_spawn(char const *cmd, char const *args, ...);
         // - collect cmd and args into argv array
         // - do not repeat cmd in args
