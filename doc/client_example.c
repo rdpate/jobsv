@@ -9,11 +9,9 @@ char const *commands[] = {
     "sleep 0.2; echo xyz",
     0};
 
-#include <unistd.h>
 int main(int argc, char **argv) {
     jobserver_error_set_cmd(argv[0]);
-    if (argc == 1) jobserver_init_or_exec(argv);
-    else jobserver_init_or_sync();
+    jobserver_init_or_monitor();
 
     for (char const **x = commands; *x; x ++) {
         jobserver_bg_shell(*x, 0);

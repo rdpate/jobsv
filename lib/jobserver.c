@@ -26,8 +26,10 @@
         int child_fd;
         jobserver_wait_callback wait_callback;
         void *wait_callback_data;
-        int waited_pid;
+        pid_t waited_pid;
+        pid_t monitor_pid;
         } self;
+    static int const start_fd = 100;
     #define log_msg(msg)            jobserver_error(0, __func__, 0, msg)
     //#define fatal_func(func)        jobserver_error(70, func, errno, NULL)
     #define fatal_sysfunc(func)     jobserver_error(71, func, errno, NULL)
@@ -39,30 +41,90 @@
             } \
         } while (0)
 // High-level Interface
-    static bool sync_fallback(void) {
-        int p[2];
-        if (pipe(p) == -1) {
-            fatal_sysfunc("pipe");
+    static bool set_env_var(int read_fd, int write_fd) {
+        if (read_fd < 0 || write_fd < 0) {
+            fatal_msg("file descriptor < 0");
             return false;
             }
-        if (p[0] > 99999 || p[1] > 99999) {
+        if (read_fd > 99999 || write_fd > 99999) {
             fatal_msg("file descriptor > 99999");
             return false;
             }
-        if (fcntl(p[0], F_SETFL, O_NONBLOCK) == -1) {
-            fatal_sysfunc("fcntl");
-            return false;
-            }
         char buffer[5+1+5+1];
-        sprintf(buffer, "%d,%d", p[0], p[1]);
+        sprintf(buffer, "%d,%d", read_fd, write_fd);
         if (setenv("JOBSERVER_FDS", buffer, true) == -1) {
             fatal_sysfunc("setenv");
             return false;
             }
-        self.read_fd = p[0];
-        self.write_fd = p[1];
+        return true;
+        }
+    static int move_fd(int fd, int start_fd) {
+        int new_fd = fcntl(fd, F_DUPFD, start_fd);
+        if (new_fd != -1) {
+            close(fd);
+            fd = new_fd;
+            }
+        return fd;
+        }
+    static bool sync_fallback(void) {
+        int pipefd[2];
+        if (pipe(pipefd) == -1) {
+            fatal_sysfunc("pipe");
+            return false;
+            }
+        pipefd[0] = move_fd(pipefd[0], start_fd);
+        pipefd[1] = move_fd(pipefd[1], start_fd);
+        if (!set_env_var(pipefd[0], pipefd[1])) {
+            close(pipefd[0]);
+            close(pipefd[1]);
+            return false;
+            }
+        self.read_fd = pipefd[0];
+        self.write_fd = pipefd[1];
         self.slots_held = 1;
         return true;
+        }
+    bool jobserver_init_or_monitor(void) {
+        if (jobserver_init()) return true;
+        if (errno != 0) return false;
+        // piggy-back on sync_fallback, adding monitor once pipe is setup
+        if (!sync_fallback()) return false;
+        int pipefd[2];
+        if (pipe(pipefd) == -1) goto sync_fallback;
+        pid_t pid = fork();
+        if (pid == -1) {
+            fatal_sysfunc("fork");
+            close(pipefd[0]);
+            close(pipefd[1]);
+            goto sync_fallback;
+            }
+        if (pid == 0) {
+            // child
+            close(pipefd[0]);
+            dup2(pipefd[1], 1);
+            close(pipefd[1]);
+            char const *argv[] = {"jobsv-monitor", 0};
+            execvp(argv[0], (char **)argv);
+            fatal_sysfunc("execvp");
+            exit(71);
+            // will fallback to synchronous
+            }
+        close(pipefd[1]);
+        while (true) {
+            char c;
+            errno = 0;
+            ssize_t x = read(pipefd[0], &c, 1);
+            if (x == 1) break;
+            if (errno == EINTR) continue;
+            close(pipefd[0]);
+            waitpid(pid, 0, 0);
+            goto sync_fallback;
+            }
+        self.monitor_pid = pid;
+        return true;
+        sync_fallback:
+        log_msg("synchronous fallback");
+        return false;
         }
     bool jobserver_init_or_exec(char **argv) {
         if (!argv || !*argv) {
@@ -190,6 +252,7 @@
         if (!jobserver_acquire_wait(0, 0)) return false;
         while (self.slots_held > 1)
             if (!jobserver_release_keep(1)) return false;
+        if (self.monitor_pid) kill(self.monitor_pid, SIGHUP);
         return true;
         }
 // Manual Forking

@@ -58,7 +58,7 @@ static int do_monitor(pid_t child_pid, int read_fd, int write_fd) {
     int delay = no_change_delay;
 
     if (!child_pid) {
-        // --attach
+        // ---attach
         while (true) {
             sleep(delay);
             if (slot_change(read_fd, write_fd)) delay = change_delay;
@@ -139,8 +139,11 @@ int main(int argc, char **argv) {
     if (rc) return rc;
 
     if (opts.attach) {
-        if (!load_env_fds()) fatal(70, "unexpected --attach problem");
-        if (opts.slots == 0) opts.slots = default_job_slots();
+        if (!load_env_fds()) fatal(70, "unexpected ---attach problem");
+        if (opts.slots == 0) {
+            opts.slots = default_job_slots();
+            if (opts.slots < 1) opts.slots = 1;
+            }
         int leak_warning = opts.slots;
         if (leak_warning < INT_MAX / 2) leak_warning *= 2;
         init_monitor(opts.slots, leak_warning);

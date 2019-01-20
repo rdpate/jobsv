@@ -19,8 +19,14 @@
         // in main, call with argv[0]
         // only required if default jobserver_error is used
 // High-level Interface
+    bool jobserver_init_or_monitor(void);
+        // - init or create pipe, set $JOBSERVER_FDS, and start monitor child
+        // - child runs "jobsv-monitor", found from $PATH
+        // - falls back to init_or_sync if can't find "jobsv-monitor"
+        // return: whether successful
     bool jobserver_init_or_exec(char **self_args);
-        // - init or exec "jobserver init --" plus self_args
+        // - init or exec "jobsv" plus self_args
+        // - falls back to init_or_sync if can't execvp "jobsv"
         // return: whether successful (maybe not at all)
     bool jobserver_init_or_sync(void);
         // - init or create synchronous jobserver (1 slot)
