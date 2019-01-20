@@ -1,6 +1,7 @@
 % FIFO CMD..
 
-Import pool previously exported as FIFO, then run CMD.
+Import pool previously exported as FIFO or create new pool, then run CMD.
 
 Options:
+    --no-new                don't create new pool on import failure
     --no-makeflags          don't modify/create $MAKEFLAGS

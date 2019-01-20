@@ -1,6 +1,7 @@
 #include "common.h"
 
 static struct {
+    bool no_new_pool;
     bool no_makeflags;
     } self;
 static int const start_fd = 100;
@@ -50,8 +51,19 @@ static void do_makeflags(int read_fd, int write_fd) {
     SYSV( make_write_fd, fcntl,(write_fd, F_DUPFD, start_fd) );
     set_makeflags(make_read_fd, make_write_fd);
     }
+static void do_new_pool(int argc, char **argv) {
+    char const *new_argv[argc + 3];
+    new_argv[0] = "jobsv";
+    new_argv[1] = "--";
+    memcpy(new_argv + 2, argv, (sizeof *argv) * (argc + 1));
+    SYS( execvp,(new_argv[0], (char **) new_argv) );
+    }
 static int handle_option(char const *name, char const *value, void *data) {
-    if (strcmp(name, "no-makeflags") == 0) {
+    if (strcmp(name, "no-new") == 0) {
+        if (value) fatal(64, "unexpected value for option %s", name);
+        self.no_new_pool = true;
+        }
+    else if (strcmp(name, "no-makeflags") == 0) {
         if (value) fatal(64, "unexpected value for option %s", name);
         self.no_makeflags = true;
         }
@@ -67,7 +79,14 @@ int main(int argc, char **argv) {
     int fd;
     { // setup pipe
         fd = open(*argv, O_RDWR);
-        if (fd == -1) fatal(65, "%s", strerror(errno));
+        if (fd == -1) {
+            if (!self.no_new_pool) {
+                nonfatal("cannot import \"%s\", creating new pool", *argv);
+                do_new_pool(argc - 1, argv + 1);
+                return 70;
+                }
+            fatal(65, "%s: %s", *argv, strerror(errno));
+            }
         int const start_fd = 100;
         if (fd < start_fd) {
             int old_fd = fd;
