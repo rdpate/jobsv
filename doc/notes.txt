@@ -1,4 +1,5 @@
 * future ideas
+    * jobsv-monitor may go away; it adds complication and detracts from the ultimately-desired interface
 * notes
     * job slots are taken to mean "full use of one processor", except each jobserver believes it can use each processor fully
         * this means if any one jobserver is running, it will (attempt to) use each processor fully, and more than one running will simply share under the OS

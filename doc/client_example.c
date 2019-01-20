@@ -11,7 +11,7 @@ char const *commands[] = {
 
 int main(int argc, char **argv) {
     jobserver_error_set_cmd(argv[0]);
-    if (!jobserver_init_or_monitor()) return 70;
+    if (!jobserver_init_or_exec(argv)) return 70;
 
     char const **x;
     if (argc == 1) x = commands;
