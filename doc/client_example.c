@@ -11,11 +11,12 @@ char const *commands[] = {
 
 int main(int argc, char **argv) {
     jobserver_error_set_cmd(argv[0]);
-    jobserver_init_or_monitor();
+    if (!jobserver_init_or_monitor()) return 70;
 
-    for (char const **x = commands; *x; x ++) {
-        jobserver_bg_shell(*x, 0);
-        }
+    char const **x;
+    if (argc == 1) x = commands;
+    else x = (char const **) argv + 1;
+    for (; *x; x ++) jobserver_bg_shell(*x, 0);
 
     jobserver_exiting();
     return 0;

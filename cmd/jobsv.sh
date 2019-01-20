@@ -1,4 +1,4 @@
-#!/bin/which
+#!/bin/echo
 # file is executable only to be found by which
 # if you're reading this, you might want to copy the file into your script
 if which jobsv jobsv-sh >/dev/null 2>&1; then

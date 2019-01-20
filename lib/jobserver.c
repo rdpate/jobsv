@@ -206,8 +206,13 @@
         return jobserver_bg(0, argv);
         }
     pid_t jobserver_bg_shell(char const *script, char const *args, ...) {
+        char const *shell = getenv("SHELL");
+        if (!shell) {
+            fatal_sysfunc("getenv");
+            return -1;
+            }
         if (!args) {
-            char const *argv[5] = {"/bin/sh", "-uec", script, "[-c]", 0};
+            char const *argv[5] = {shell, "-uec", script, shell, 0};
             return jobserver_bg(0, argv);
             }
         int n = 0;
@@ -216,10 +221,10 @@
         while (va_arg(ap, char const *)) n ++;
         va_end(ap);
         char const *argv[n + 6];
-        argv[0] = "/bin/sh";
+        argv[0] = shell;
         argv[1] = "-Cuec";
         argv[2] = script;
-        argv[3] = "[-c]";
+        argv[3] = shell;
         argv[4] = args;
         va_start(ap, args);
         char const **next = argv + 5;
@@ -317,33 +322,27 @@
                 }
             self.child_fd = fd;
             }
-
         long read_fd, write_fd; {
+            errno = 0;
             char const *env = getenv("JOBSERVER_FDS");
-            if (!env) {
-                errno = 0;
-                return false;
-                }
+            if (!env || !*env) goto invalid_env;
             char const *rest;
             read_fd = strtol(env, (char **) &rest, 10);
-            if (*rest != ',') {
-                errno = EINVAL;
-                fatal_msg("invalid $JOBSERVER_FDS");
-                return false;
-                }
+            if (*rest != ',') goto invalid_env;
             write_fd = strtol(rest + 1, (char **) &rest, 10);
-            if (*rest != '\0') {
-                errno = EINVAL;
-                fatal_msg("invalid $JOBSERVER_FDS");
-                return false;
-                }
+            if (*rest != '\0') goto invalid_env;
             if (read_fd  < 0 || INT_MAX < read_fd
             ||  write_fd < 0 || INT_MAX < write_fd
             ||  write_fd == 0) {
-                errno = ERANGE;
-                fatal_msg("invalid $JOBSERVER_FDS");
-                return false;
+                goto invalid_env;
                 }
+            int fd;
+            fd = dup(read_fd);
+            if (fd == -1) goto invalid_env;
+            close(fd);
+            fd = dup(write_fd);
+            if (fd == -1) goto invalid_env;
+            close(fd);
             }
         self.read_fd = (int) read_fd;
         // write_fd is sentinel and assigned last
@@ -351,6 +350,9 @@
 
         self.write_fd = (int) write_fd;
         return true;
+        invalid_env:
+        errno = 0;
+        return false;
         }
     bool jobserver_set_wait_callback(jobserver_wait_callback func, void *data) {
         self.wait_callback = func;

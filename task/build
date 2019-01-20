@@ -1,8 +1,11 @@
 #!/bin/sh -Cue
 
 # auto-parallelize; note: uses from $PATH and not from repo
-if which jobsv >/dev/null 2>&1; then
-    jobsv started || exec jobsv init "$0" "$@"
+if jobsv_sh="$(which jobsv.sh 2>/dev/null)"; then
+    . "$jobsv_sh"
+    jobsv_or_exec "$0" "$@"
+else
+    jobsv_bg() { "$@" </dev/null; }
     fi
 
 proj="$(dirname "$0")/.."

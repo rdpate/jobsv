@@ -47,7 +47,8 @@
         // delegate: jobserver_bg(0, argv)
     pid_t jobserver_bg_shell(char const *script, char const *args, ...);
         // - collect script and args into argv array
-        // delegate: jobserver_bg_spawn("/bin/sh", "-uec", script, "[-c]", args);
+        // - uses $SHELL
+        // delegate: jobserver_bg_spawn(SHELL, "-uec", script, SHELL, args..);
     bool jobserver_exiting(void);
         // - wait for children
         // - release/aqcquire to hold exactly 1 slot
